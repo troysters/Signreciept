@@ -535,7 +535,8 @@ async function loadRecentReceipts() {
   if (!listEl) return;
   listEl.innerHTML = ''; loadEl.style.display = 'flex';
   try {
-    const r = await loyverseGet('receipts?limit=30');
+    const deviceFilter = selectedDevice?.id ? `&pos_device_id=${selectedDevice.id}` : '';
+    const r = await loyverseGet(`receipts?limit=30${deviceFilter}`);
     if (!r.ok) throw new Error();
     const receipts = (await r.json()).receipts || [];
     loadEl.style.display = 'none';
@@ -561,7 +562,8 @@ async function searchReceipt() {
   errEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Searching...</div>';
   errEl.style.display = 'block';
   try {
-    const r = await loyverseGet(`receipts?receipt_numbers=${encodeURIComponent(num)}`);
+    const deviceFilter = selectedDevice?.id ? `&pos_device_id=${selectedDevice.id}` : '';
+    const r = await loyverseGet(`receipts?receipt_numbers=${encodeURIComponent(num)}${deviceFilter}`);
     if (!r.ok) throw new Error();
     const receipts = (await r.json()).receipts || [];
     errEl.style.display = 'none';
