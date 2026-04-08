@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SignReceipt</title>
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SignReceipt">
+<meta name="theme-color" content="#0f1117">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  :root {
+    --bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;--accent:#4ade80;
+    --accent-dim:#1a3a26;--text:#e8eaf0;--text-dim:#6b7280;
+    --danger:#f87171;--warn:#fbbf24;--warn-dim:#2a1f0a;
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;max-width:480px;margin:0 auto;}
+  .screen{display:none;padding:24px 20px;min-height:100vh;}
+  .screen.active{display:flex;flex-direction:column;}
+  .app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+  .app-logo{font-family:var(--mono);font-size:18px;font-weight:600;}
+  .app-logo span{color:var(--accent);}
+  .badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);letter-spacing:1px;}
+  .badge-warn{background:var(--warn-dim);border-color:#78450a;color:var(--warn);}
+  .header-right{display:flex;gap:8px;align-items:center;}
+  .hbtn{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim);letter-spacing:1px;cursor:pointer;}
+  label{font-size:11px;font-family:var(--mono);color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px;}
+  input[type="text"],input[type="password"]{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:14px 16px;outline:none;transition:border-color 0.15s;margin-bottom:16px;}
+  input:focus{border-color:var(--accent);}
+  .btn{display:block;width:100%;padding:16px;border-radius:8px;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:0.5px;cursor:pointer;border:none;transition:opacity 0.15s,transform 0.1s;text-align:center;}
+  .btn:active{transform:scale(0.98);opacity:0.9;}
+  .btn-primary{background:var(--accent);color:#0f1117;}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn+.btn{margin-top:10px;}
+  .row{display:flex;gap:10px;}
+  .row .btn{flex:1;margin:0;}
+  .back-btn{background:none;border:none;color:var(--text-dim);font-family:var(--mono);font-size:12px;cursor:pointer;padding:0;margin-bottom:18px;letter-spacing:0.5px;}
+  .spacer{flex:1;}
+  .msg{padding:12px 14px;border-radius:6px;font-size:12px;font-family:var(--mono);margin-bottom:14px;line-height:1.5;}
+  .msg-info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);}
+  .msg-warn{background:var(--warn-dim);border:1px solid #78450a;color:var(--warn);}
+  .msg-err{background:#2a0a0a;border:1px solid #7a1a1a;color:var(--danger);}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:8px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-row{display:flex;align-items:center;color:var(--text-dim);font-family:var(--mono);font-size:13px;padding:20px 0;justify-content:center;}
+  .section-title{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+
+  /* Mode buttons */
+  .mode-btn{flex:1;padding:20px 16px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--mono);}
+  .mode-btn:active{border-color:var(--accent);background:#1a2820;}
+  .mode-btn .icon{font-size:28px;}
+  .mode-btn .mlabel{font-size:12px;font-weight:600;color:var(--text);letter-spacing:0.5px;}
+  .mode-btn .sub{font-size:10px;color:var(--text-dim);text-align:center;line-height:1.4;}
+  .mode-btn.online{border-color:var(--accent);background:var(--accent-dim);}
+  .mode-btn.online .mlabel{color:var(--accent);}
+  .status-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:20px;margin-bottom:20px;justify-content:center;}
+  .status-pill.online{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);}
+  .status-pill.offline{background:var(--warn-dim);color:var(--warn);border:1px solid #78450a;}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  /* Receipt list */
+  .receipt-list{flex:1;overflow-y:auto;}
+  .receipt-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+  .receipt-card:active{border-color:var(--accent);background:#1a2820;}
+  .receipt-num{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);margin-bottom:3px;}
+  .receipt-meta{font-size:11px;color:var(--text-dim);font-family:var(--mono);}
+  .receipt-total{font-family:var(--mono);font-size:17px;font-weight:600;}
+  .device-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;}
+  .device-card:active{border-color:var(--accent);}
+  .device-card.selected{border-color:var(--accent);background:var(--accent-dim);}
+
+  /* Sign screen — compact summary + large canvas */
+  .receipt-detail{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;}
+  .receipt-summary{display:flex;justify-content:space-between;align-items:center;}
+  .receipt-summary .rs-left{font-family:var(--mono);font-size:12px;}
+  .receipt-summary .rs-num{color:var(--accent);font-weight:600;margin-bottom:2px;}
+  .receipt-summary .rs-name{color:var(--text-dim);font-size:11px;}
+  .receipt-summary .rs-total{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent);}
+  .sig-container{position:relative;background:#fff;border-radius:8px;overflow:hidden;min-height:300px;flex:1;margin-bottom:12px;border:2px solid var(--border);}
+  .sig-container.has-sig{border-color:var(--accent);}
+  #sigCanvas{display:block;width:100%;height:100%;touch-action:none;}
+  .sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#9ca3af;font-family:var(--mono);pointer-events:none;text-align:center;}
+  .sig-line{position:absolute;bottom:36px;left:16px;right:16px;height:1px;background:#d1d5db;pointer-events:none;}
+  .sig-x{position:absolute;bottom:38px;left:16px;font-size:18px;color:#374151;pointer-events:none;}
+
+  /* Done */
+  .done-icon{width:72px;height:72px;background:var(--accent-dim);border:2px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:40px auto 20px;}
+  .done-title{text-align:center;font-family:var(--mono);font-size:20px;font-weight:600;margin-bottom:8px;}
+  .done-sub{text-align:center;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-bottom:32px;line-height:1.7;}
+
+  /* Customer autocomplete */
+  .customer-option{padding:13px 16px;font-family:var(--mono);font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);}
+  .customer-option:last-child{border-bottom:none;}
+  .customer-option:active{background:#1a2820;color:var(--accent);}
+  .customer-option .cmatch{color:var(--accent);}
+
+  /* ── Manual item grid ── */
+  .item-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .item-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 10px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;}
+  .item-tile:active{border-color:var(--accent);background:#1a2820;}
+  .item-tile .iname{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px;}
+  .item-tile .isub{font-size:10px;color:var(--text-dim);font-family:var(--mono);}
+  .item-tile.fuel-toggle{border-color:var(--border);}
+  .item-tile.fuel-toggle.on{border-color:var(--accent);background:var(--accent-dim);}
+  .item-tile.fuel-toggle.on .iname{color:var(--accent);}
+  .item-tile.fuel-toggle .toggle-dot{width:28px;height:16px;background:var(--border);border-radius:8px;margin:6px auto 0;position:relative;transition:background .15s;}
+  .item-tile.fuel-toggle.on .toggle-dot{background:var(--accent);}
+  .item-tile.fuel-toggle .toggle-dot::after{content:'';position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .15s;}
+  .item-tile.fuel-toggle.on .toggle-dot::after{transform:translateX(12px);}
+
+  /* Added items */
+  .added-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  .added-item .aname{font-family:var(--mono);font-size:13px;color:var(--text);}
+  .added-item .ameta{font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:2px;}
+  .added-item .aprice{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent);}
+  .added-item .adel{background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:0 0 0 10px;line-height:1;}
+
+  /* Running total */
+  .total-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+  .total-bar .tlabel{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);}
+  .total-bar .tamount{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent);}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:flex-end;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:#1a1d27;border:1px solid var(--border);border-radius:16px 16px 0 0;padding:24px 20px;width:100%;max-width:480px;}
+  .modal-title{font-family:var(--mono);font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+
+  /* Variant picker */
+  .variant-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);width:100%;text-align:left;display:block;}
+  .variant-btn:active{border-color:var(--accent);background:#1a2820;}
+  .variant-btn.selected{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);}
+
+  /* Calculator display */
+  .calc-display{background:#0a0d14;border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:0;transition:border-color .15s;}
+  .calc-display.active-tab{border-color:var(--accent);background:#0d1a12;}
+  .calc-label{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  .calc-display.active-tab .calc-label{color:var(--accent);}
+  .calc-amount{font-family:var(--mono);font-size:32px;font-weight:600;color:var(--text);text-align:right;}
+  .calc-display.active-tab .calc-amount{color:var(--accent);}
+  .calc-preview{font-family:var(--mono);font-size:11px;color:var(--text-dim);text-align:right;margin-top:2px;min-height:16px;}
+
+  /* Numpad */
+  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+  .nk{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:17px 0;font-family:var(--mono);font-size:22px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;user-select:none;}
+  .nk:active{background:#2a3040;border-color:var(--accent);}
+  .nk.del{color:var(--danger);font-size:18px;}
+  .nk.zero{grid-column:span 2;}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="screen active" id="screen-setup">
+  <div class="app-header"><div class="app-logo">Sign<span>Receipt</span></div><div class="badge">SETUP</div></div>
+  <label>Loyverse API Token</label>
+  <input type="password" id="apiTokenInput" placeholder="Paste your API token..." autocomplete="off"/>
+  <div class="msg msg-info">Back Office → Settings → API tokens</div>
+  <label>Store Name</label><input type="text" id="storeNameInput" value="M&M"/>
+  <label>Store Subtitle</label><input type="text" id="storeSubInput" value="ICE SERVICE"/>
+  <label>Address</label><input type="text" id="storeAddrInput" value="1225 RIVER ROAD, WISCONSIN DELLS, WI 53965"/>
+  <label>Phone</label><input type="text" id="storePhoneInput" value="608-254-4500"/>
+  <div class="spacer"></div>
+  <button class="btn btn-primary" onclick="connectAPI()">CONNECT →</button>
+  <div id="setup-error" style="margin-top:12px;"></div>
+</div>
+
+<!-- DEVICE SELECT -->
+<div class="screen" id="screen-device">
+  <div class="app-header"><div class="app-logo">Sign<span>Receipt</span></div><div class="badge">DEVICE</div></div>
+  <div class="msg msg-info">Which POS device is on this phone?<br>Set your receipt prefix (e.g. <strong>14-</strong>) once and it stays.</div>
+  <div id="device-loading" class="loading-row"><span class="spinner"></span> Loading devices...</div>
+  <div id="device-list"></div>
+  <div id="device-error"></div>
+  <div id="prefix-section" style="display:none;margin-top:16px;">
+    <label>Receipt Number Prefix</label>
+    <input type="text" id="prefixInput" placeholder="e.g. 14-" style="margin-bottom:4px;"/>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--text-dim);margin-bottom:16px;">This is the part before the digits on every receipt for this device.</div>
+    <button class="btn btn-primary" onclick="savePrefix()">SAVE PREFIX →</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="screen" id="screen-main">
+  <div class="app-header">
+    <div class="app-logo">Sign<span>Receipt</span></div>
+    <div class="header-right">
+      <button class="hbtn" id="device-badge" onclick="changeDevice()">DEVICE</button>
+      <button class="hbtn" onclick="showSetup()">⚙</button>
+    </div>
+  </div>
+  <div id="status-pill" class="status-pill offline"><div class="dot"></div><span id="status-text">Checking...</span></div>
+  <div style="display:flex;gap:12px;margin-bottom:28px;">
+    <div class="mode-btn online" onclick="goOnline()" id="btn-online">
+      <div class="icon">📶</div><div class="mlabel">FETCH RECEIPT</div>
+      <div class="sub">Pull from Loyverse<br>Needs signal</div>
+    </div>
+    <div class="mode-btn" onclick="goManual()">
+      <div class="icon">✏️</div><div class="mlabel">BUILD MANUALLY</div>
+      <div class="sub">No signal needed<br>Pick items + price</div>
+    </div>
+  </div>
+  <div id="queue-badge" style="display:none;" class="msg msg-warn"></div>
+  <div id="main-error"></div>
+</div>
+
+<!-- ONLINE: fetch receipts -->
+<div class="screen" id="screen-receipts">
+  <div class="app-header"><div class="app-logo">Sign<span>Receipt</span></div><div class="badge">ONLINE</div></div>
+  <button class="back-btn" onclick="showScreen('screen-main')">← BACK</button>
+  <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <input type="text" id="receiptSearch" placeholder="Receipt number..." style="margin-bottom:0;flex:1;" onkeydown="if(event.key==='Enter')searchReceipt()"/>
+    <button class="btn btn-primary" style="width:auto;padding:14px 18px;" onclick="searchReceipt()">GO</button>
+  </div>
+  <div id="search-error" style="display:none;"></div>
+  <div class="section-title">Recent Receipts</div>
+  <div id="recent-loading" class="loading-row" style="display:none;"><span class="spinner"></span> Loading...</div>
+  <div class="receipt-list" id="receiptList"></div>
+</div>
+
+<!-- MANUAL: customer + item picker -->
+<div class="screen" id="screen-manual">
+  <div class="app-header">
+    <div class="app-logo">Sign<span>Receipt</span></div>
+    <div class="badge badge-warn">MANUAL</div>
+  </div>
+  <button class="back-btn" onclick="showScreen('screen-main')">← BACK</button>
+
+  <label>Customer Name</label>
+  <div style="position:relative;margin-bottom:16px;">
+    <input type="text" id="manualCustomer" placeholder="Start typing a name..." autocomplete="off" style="margin-bottom:0;" oninput="customerTyping()" onblur="hideDropdown()" onfocus="customerTyping()"/>
+    <div id="customerDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#1a1d27;border:1px solid var(--accent);border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:220px;overflow-y:auto;"></div>
+  </div>
+  <label>Receipt Number</label>
+  <div style="display:flex;align-items:center;gap:0;margin-bottom:16px;">
+    <div id="receiptPrefixLabel" style="background:#0a0d14;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;padding:14px 12px;font-family:var(--mono);font-size:15px;color:var(--accent);white-space:nowrap;"></div>
+    <input type="text" id="manualReceiptNum" placeholder="digits" inputmode="numeric" style="margin-bottom:0;border-radius:0 6px 6px 0;flex:1;"/>
+  </div>
+
+  <div class="section-title">Tap item to add</div>
+  <div class="item-grid" id="itemGrid"></div>
+
+  <div id="addedItems"></div>
+
+  <div class="total-bar">
+    <span class="tlabel">Total</span>
+    <span class="tamount" id="runningTotal">$0.00</span>
+  </div>
+
+  <button class="btn btn-primary" onclick="submitManual()">GET SIGNATURE →</button>
+  <div id="manual-error" style="margin-top:10px;"></div>
+</div>
+
+<!-- SIGN -->
+<div class="screen" id="screen-sign">
+  <div class="app-header"><div class="app-logo">Sign<span>Receipt</span></div><div class="badge">SIGN</div></div>
+  <button class="back-btn" onclick="goBackFromSign()">← BACK</button>
+  <div class="receipt-detail" id="receiptDetail"></div>
+  <div style="font-size:11px;font-family:var(--mono);color:var(--text-dim);text-align:center;margin-bottom:8px;letter-spacing:1px;">SIGN TO AUTHORIZE THIS CHARGE</div>
+  <div class="sig-container" id="sigContainer">
+    <canvas id="sigCanvas"></canvas>
+    <div class="sig-line"></div>
+    <div class="sig-x">✕</div>
+    <div class="sig-hint" id="sigHint">Sign here with your finger</div>
+  </div>
+  <div class="row" style="margin-bottom:14px;"><button class="btn btn-secondary" onclick="clearSig()">CLEAR</button></div>
+  <button class="btn btn-primary" onclick="savePDF()" id="saveBtn">SAVE SIGNED PDF</button>
+  <div id="sign-error" style="margin-top:10px;"></div>
+</div>
+
+<!-- DONE -->
+<div class="screen" id="screen-done">
+  <div class="done-icon">✓</div>
+  <div class="done-title">Signed & Saved</div>
+  <div class="done-sub" id="done-sub"></div>
+  <div class="spacer"></div>
+  <button class="btn btn-primary" onclick="nextReceipt()">NEXT RECEIPT →</button>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Add Item</div>
+
+    <!-- Step 1: Variant (only for Block) -->
+    <div id="variantStep" style="display:none;">
+      <div class="section-title" style="margin-bottom:10px;">Select Variant</div>
+      <div id="variantList"></div>
+      <div class="row" style="margin-top:4px;">
+        <button class="btn btn-secondary" onclick="closeModal()">CANCEL</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Price + Qty -->
+    <div id="priceStep">
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div class="calc-display calc-tab active-tab" id="tabPrice" onclick="setActiveTab('price')" style="flex:1;cursor:pointer;">
+          <div class="calc-label">Price / unit</div>
+          <div class="calc-amount" id="calcDisplay">$0.00</div>
+        </div>
+        <div class="calc-display calc-tab" id="tabQty" onclick="setActiveTab('qty')" style="flex:0 0 90px;cursor:pointer;">
+          <div class="calc-label">Qty</div>
+          <div class="calc-amount" id="calcQtyDisplay">1</div>
+        </div>
+      </div>
+      <div class="calc-preview" id="calcPreview" style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:10px;min-height:16px;"></div>
+      <div class="numpad">
+        <div class="nk" onclick="numKey('1')">1</div>
+        <div class="nk" onclick="numKey('2')">2</div>
+        <div class="nk" onclick="numKey('3')">3</div>
+        <div class="nk" onclick="numKey('4')">4</div>
+        <div class="nk" onclick="numKey('5')">5</div>
+        <div class="nk" onclick="numKey('6')">6</div>
+        <div class="nk" onclick="numKey('7')">7</div>
+        <div class="nk" onclick="numKey('8')">8</div>
+        <div class="nk" onclick="numKey('9')">9</div>
+        <div class="nk del" onclick="numKey('del')">⌫</div>
+        <div class="nk zero" onclick="numKey('0')">0</div>
+      </div>
+      <div class="row">
+        <button class="btn btn-secondary" onclick="closeModal()">CANCEL</button>
+        <button class="btn btn-primary" onclick="confirmItem()">ADD →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const WORKER_URL = 'https://signreceipt.troysters.workers.dev';
+let apiToken='',storeName='',storeSubtitle='',storeAddress='',storePhone='';
+let selectedDevice=null,currentReceipt=null,isManual=false;
+let sigDrawing=false,sigHasContent=false,lastPos=null;
+
+// ── Item catalog ──────────────────────────────────────────────────────────────
+const ITEMS = [
+  {id:'ice20', name:'20lb Packaged Ice', type:'price'},
+  {id:'ice7',  name:'7lb Packaged Ice',  type:'price'},
+  {id:'block', name:'Block',             type:'variants', variants:['Big Block','10lb Block','10lb Amish Block']},
+  {id:'box',   name:'Box Fee',           type:'price'},
+  {id:'fuel5', name:'Fuel Surcharge',    type:'toggle',   price:5.00, sub:'$5.00 flat'},
+  {id:'fuelX', name:'Fuel Surcharge',    type:'price',    sub:'Custom price'},
+];
+
+// ── Manual state ──────────────────────────────────────────────────────────────
+let manualItems = [];
+let fuel5On = false;
+
+// ── Calculator state ──────────────────────────────────────────────────────────
+let calcCents = 0;
+let calcQty = 1;
+let pendingItem = null;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  try {
+    const cfg = JSON.parse(localStorage.getItem('signreceipt_config') || '{}');
+    apiToken = cfg.apiToken || '';
+    storeName = cfg.storeName || 'M&M';
+    storeSubtitle = cfg.storeSubtitle || 'ICE SERVICE';
+    storeAddress = cfg.storeAddress || '1225 RIVER ROAD, WISCONSIN DELLS, WI 53965';
+    storePhone = cfg.storePhone || '608-254-4500';
+    selectedDevice = cfg.selectedDevice || null;
+    document.getElementById('apiTokenInput').value = apiToken;
+    document.getElementById('storeNameInput').value = storeName;
+    document.getElementById('storeSubInput').value = storeSubtitle;
+    document.getElementById('storeAddrInput').value = storeAddress;
+    document.getElementById('storePhoneInput').value = storePhone;
+    if (apiToken && selectedDevice) {
+      updateDeviceBadge();
+      showScreen('screen-main');
+      checkConnection();
+      loadRecentReceipts();
+      loadCachedCustomers();
+      fetchAndCacheCustomers();
+      setTimeout(tryFlushQueue, 2000);
+      updateQueueBadge();
+      return;
+    }
+    if (apiToken) { showScreen('screen-device'); loadDevices(); return; }
+  } catch(e) {}
+  showScreen('screen-setup');
+});
+
+function saveConfig() {
+  localStorage.setItem('signreceipt_config', JSON.stringify({
+    apiToken, storeName, storeSubtitle, storeAddress, storePhone, selectedDevice
+  }));
+}
+
+// ── Screens ───────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showSetup() { showScreen('screen-setup'); }
+function changeDevice() { showScreen('screen-device'); loadDevices(); }
+function goOnline() { showScreen('screen-receipts'); loadRecentReceipts(); }
+function goManual() {
+  manualItems = []; fuel5On = false;
+  document.getElementById('manualCustomer').value = '';
+  document.getElementById('customerDropdown').style.display = 'none';
+  document.getElementById('manualReceiptNum').value = '';
+  document.getElementById('manual-error').innerHTML = '';
+  const prefix = selectedDevice?.prefix || '';
+  const cleanPrefix = prefix ? (prefix.endsWith('-') ? prefix : prefix + '-') : '';
+  document.getElementById('receiptPrefixLabel').textContent = '#' + cleanPrefix;
+  buildItemGrid();
+  renderAddedItems();
+  showScreen('screen-manual');
+}
+function goBackFromSign() { showScreen(isManual ? 'screen-manual' : 'screen-receipts'); }
+function nextReceipt() {
+  clearSig(); currentReceipt = null;
+  document.getElementById('receiptSearch').value = '';
+  showScreen('screen-main');
+  checkConnection(); loadRecentReceipts();
+  updateQueueBadge();
+}
+
+// ── Connection ────────────────────────────────────────────────────────────────
+async function checkConnection() {
+  const pill = document.getElementById('status-pill');
+  const text = document.getElementById('status-text');
+  const btn  = document.getElementById('btn-online');
+  try {
+    const r = await loyverseGet('receipts?limit=1');
+    if (r.ok) {
+      pill.className = 'status-pill online'; text.textContent = 'Signal good — Loyverse connected';
+      btn.classList.add('online'); btn.style.opacity = '1';
+    } else throw new Error();
+  } catch(e) {
+    pill.className = 'status-pill offline'; text.textContent = 'No signal — use manual entry';
+    btn.classList.remove('online'); btn.style.opacity = '0.4';
+  }
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+async function connectAPI() {
+  const token = document.getElementById('apiTokenInput').value.trim();
+  const errEl = document.getElementById('setup-error');
+  errEl.innerHTML = '';
+  if (!token) { errEl.innerHTML = '<div class="msg msg-err">Enter your API token.</div>'; return; }
+  apiToken = token;
+  storeName    = document.getElementById('storeNameInput').value.trim() || 'M&M';
+  storeSubtitle = document.getElementById('storeSubInput').value.trim();
+  storeAddress  = document.getElementById('storeAddrInput').value.trim();
+  storePhone    = document.getElementById('storePhoneInput').value.trim();
+  errEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Connecting...</div>';
+  try {
+    const r = await loyverseGet('receipts?limit=1');
+    if (r.ok) { saveConfig(); showScreen('screen-device'); loadDevices(); }
+    else errEl.innerHTML = '<div class="msg msg-err">Connection failed. Check your token.</div>';
+  } catch(e) {
+    errEl.innerHTML = `<div class="msg msg-err">Could not reach Loyverse.</div>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="forceContinue()">CONTINUE ANYWAY</button>`;
+  }
+}
+function forceContinue() {
+  apiToken      = document.getElementById('apiTokenInput').value.trim();
+  storeName     = document.getElementById('storeNameInput').value.trim() || 'M&M';
+  storeSubtitle = document.getElementById('storeSubInput').value.trim();
+  storeAddress  = document.getElementById('storeAddrInput').value.trim();
+  storePhone    = document.getElementById('storePhoneInput').value.trim();
+  saveConfig(); showScreen('screen-device'); loadDevices();
+}
+
+// ── Devices ───────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  const listEl  = document.getElementById('device-list');
+  const loadEl  = document.getElementById('device-loading');
+  const errEl   = document.getElementById('device-error');
+  listEl.innerHTML = ''; errEl.innerHTML = ''; loadEl.style.display = 'flex';
+  try {
+    const r = await loyverseGet('pos_devices'); loadEl.style.display = 'none';
+    if (!r.ok) throw new Error();
+    const devices = (await r.json()).pos_devices || [];
+    if (!devices.length) throw new Error('none');
+    devices.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'device-card' + (selectedDevice?.id === d.id ? ' selected' : '');
+      card.innerHTML = `<div style="font-size:24px;">📱</div><div><div style="font-family:var(--mono);font-size:14px;font-weight:600;">${d.name || 'POS Device'}</div></div>`;
+      card.onclick = () => selectDevice(d.id, d.name || 'POS Device');
+      listEl.appendChild(card);
+    });
+  } catch(e) {
+    loadEl.style.display = 'none';
+    errEl.innerHTML = `<div class="msg msg-warn">Can't load devices. Enter your POS name:</div>
+      <input type="text" id="manualDeviceInput" placeholder="e.g. Paul 01" style="margin-bottom:0;"/>
+      <button class="btn btn-primary" style="margin-top:10px;" onclick="selectManualDevice()">USE THIS DEVICE →</button>`;
+  }
+}
+function selectDevice(id, name) {
+  selectedDevice = {id, name, prefix: selectedDevice?.id === id ? (selectedDevice.prefix || '') : ''};
+  document.getElementById('prefix-section').style.display = 'block';
+  document.getElementById('prefixInput').value = selectedDevice.prefix || '';
+  document.getElementById('prefix-section').scrollIntoView({behavior:'smooth'});
+}
+function savePrefix() {
+  const prefix = document.getElementById('prefixInput').value.trim();
+  selectedDevice.prefix = prefix;
+  saveConfig(); updateDeviceBadge(); showScreen('screen-main'); checkConnection(); loadRecentReceipts();
+}
+function selectManualDevice() {
+  const name = document.getElementById('manualDeviceInput')?.value.trim();
+  if (!name) return;
+  selectedDevice = {id:null, name, prefix:''};
+  document.getElementById('prefix-section').style.display = 'block';
+  document.getElementById('prefixInput').value = '';
+  document.getElementById('prefix-section').scrollIntoView({behavior:'smooth'});
+}
+function updateDeviceBadge() {
+  const b = document.getElementById('device-badge');
+  if (b && selectedDevice) b.textContent = selectedDevice.name.toUpperCase();
+}
+
+// ── Loyverse API ──────────────────────────────────────────────────────────────
+function loyverseGet(path) {
+  return fetch(`${WORKER_URL}/proxy/${path}`, {
+    headers: { 'Authorization': `Bearer ${apiToken}` }
+  });
+}
+
+async function loadRecentReceipts() {
+  const listEl = document.getElementById('receiptList');
+  const loadEl = document.getElementById('recent-loading');
+  if (!listEl) return;
+  listEl.innerHTML = ''; loadEl.style.display = 'flex';
+  try {
+    const r = await loyverseGet('receipts?limit=100');
+    if (!r.ok) throw new Error();
+    let receipts = (await r.json()).receipts || [];
+    // Filter to only show receipts from this device using the prefix
+    const prefix = selectedDevice?.prefix || '';
+    const cleanPrefix = prefix ? (prefix.endsWith('-') ? prefix : prefix + '-') : '';
+    if (cleanPrefix) {
+      receipts = receipts.filter(rec => {
+        const num = (rec.receipt_number || '').replace(/^#/, '');
+        return num.startsWith(cleanPrefix);
+      });
+    }
+    receipts = receipts.slice(0, 30);
+    loadEl.style.display = 'none';
+    if (!receipts.length) { listEl.innerHTML = '<div class="msg msg-info">No receipts found.</div>'; return; }
+    receipts.forEach(rec => {
+      const d = new Date(rec.created_at);
+      const card = document.createElement('div');
+      card.className = 'receipt-card';
+      card.innerHTML = `<div><div class="receipt-num">#${rec.receipt_number}</div><div class="receipt-meta">${d.toLocaleDateString([],{month:'short',day:'numeric'})} · ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}${rec.customer_name ? ' · '+rec.customer_name : ''}</div></div><div class="receipt-total">${fmtMoney(rec.total_money)}</div>`;
+      card.onclick = () => openApiReceipt(rec);
+      listEl.appendChild(card);
+    });
+  } catch(e) {
+    loadEl.style.display = 'none';
+    listEl.innerHTML = '<div class="msg msg-warn">Could not load — use manual entry.</div>';
+  }
+}
+
+async function searchReceipt() {
+  const num   = document.getElementById('receiptSearch').value.trim();
+  const errEl = document.getElementById('search-error');
+  if (!num) return;
+  errEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Searching...</div>';
+  errEl.style.display = 'block';
+  try {
+    const r = await loyverseGet(`receipts?receipt_numbers=${encodeURIComponent(num)}`);
+    if (!r.ok) throw new Error();
+    const receipts = (await r.json()).receipts || [];
+    errEl.style.display = 'none';
+    if (!receipts.length) { errEl.innerHTML = '<div class="msg msg-err">Not found.</div>'; errEl.style.display = 'block'; return; }
+    openApiReceipt(receipts[0]);
+  } catch(e) { errEl.innerHTML = '<div class="msg msg-err">Search failed.</div>'; errEl.style.display = 'block'; }
+}
+
+// ── Customer autocomplete ─────────────────────────────────────────────────────
+let cachedCustomers = [];
+
+function loadCachedCustomers() {
+  try { cachedCustomers = JSON.parse(localStorage.getItem('signreceipt_customers') || '[]'); }
+  catch(e) { cachedCustomers = []; }
+}
+
+async function fetchAndCacheCustomers() {
+  try {
+    let all = [], cursor = null;
+    do {
+      const url = 'customers?limit=250' + (cursor ? '&cursor=' + cursor : '');
+      const r = await loyverseGet(url);
+      if (!r.ok) break;
+      const data = await r.json();
+      const batch = (data.customers || []).map(c => c.name).filter(Boolean);
+      all = all.concat(batch);
+      cursor = data.cursor || null;
+    } while (cursor);
+    if (all.length) {
+      cachedCustomers = [...new Set(all)].sort();
+      localStorage.setItem('signreceipt_customers', JSON.stringify(cachedCustomers));
+    }
+  } catch(e) {}
+}
+
+function customerTyping() {
+  const val      = document.getElementById('manualCustomer').value.trim();
+  const dropdown = document.getElementById('customerDropdown');
+  if (!val || cachedCustomers.length === 0) { dropdown.style.display = 'none'; return; }
+  const lower   = val.toLowerCase();
+  const matches = cachedCustomers.filter(n => n.toLowerCase().includes(lower)).slice(0, 8);
+  if (!matches.length) { dropdown.style.display = 'none'; return; }
+  dropdown.innerHTML = '';
+  matches.forEach(name => {
+    const div = document.createElement('div');
+    div.className = 'customer-option';
+    const idx = name.toLowerCase().indexOf(lower);
+    div.innerHTML = name.substring(0, idx) +
+      `<span class="cmatch">${name.substring(idx, idx + val.length)}</span>` +
+      name.substring(idx + val.length);
+    div.onmousedown = () => selectCustomer(name);
+    dropdown.appendChild(div);
+  });
+  dropdown.style.display = 'block';
+}
+
+function selectCustomer(name) {
+  document.getElementById('manualCustomer').value = name;
+  document.getElementById('customerDropdown').style.display = 'none';
+}
+
+function hideDropdown() {
+  setTimeout(() => { document.getElementById('customerDropdown').style.display = 'none'; }, 150);
+}
+
+function buildItemGrid() {
+  const grid = document.getElementById('itemGrid');
+  grid.innerHTML = '';
+  ITEMS.forEach(item => {
+    const tile = document.createElement('div');
+    if (item.type === 'toggle') {
+      tile.className = 'item-tile fuel-toggle' + (fuel5On ? ' on' : '');
+      tile.id = 'tile-' + item.id;
+      tile.innerHTML = `<div class="iname">${item.name}</div><div class="isub">${item.sub}</div><div class="toggle-dot"></div>`;
+      tile.onclick = () => toggleFuel5(tile, item);
+    } else {
+      tile.className = 'item-tile';
+      tile.innerHTML = `<div class="iname">${item.name}</div>${item.sub ? `<div class="isub">${item.sub}</div>` : item.type==='variants' ? `<div class="isub">${item.variants.length} variants</div>` : ''}`;
+      tile.onclick = () => openItemModal(item);
+    }
+    grid.appendChild(tile);
+  });
+}
+
+function toggleFuel5(tile) {
+  fuel5On = !fuel5On;
+  tile.classList.toggle('on', fuel5On);
+  renderAddedItems();
+}
+
+// ── Item modal ────────────────────────────────────────────────────────────────
+function openItemModal(item) {
+  pendingItem = { ...item, variantName: null };
+  calcCents = 0; calcQty = 1; calcQtyDigits = '1';
+  activeTab = 'price';
+  document.getElementById('modalTitle').textContent = item.name;
+  updateCalcDisplay();
+
+  if (item.type === 'variants') {
+    document.getElementById('variantStep').style.display = 'block';
+    document.getElementById('priceStep').style.display = 'none';
+    const list = document.getElementById('variantList');
+    list.innerHTML = '';
+    item.variants.forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'variant-btn';
+      btn.textContent = v;
+      btn.onclick = () => {
+        list.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        pendingItem.variantName = v;
+        document.getElementById('modalTitle').textContent = v;
+        document.getElementById('variantStep').style.display = 'none';
+        document.getElementById('priceStep').style.display = 'block';
+      };
+      list.appendChild(btn);
+    });
+  } else {
+    document.getElementById('variantStep').style.display = 'none';
+    document.getElementById('priceStep').style.display = 'block';
+  }
+
+  document.getElementById('itemModal').classList.add('open');
+  setActiveTab('price');
+}
+
+function closeModal() { document.getElementById('itemModal').classList.remove('open'); }
+
+// ── Calculator numpad ─────────────────────────────────────────────────────────
+let activeTab = 'price';
+let calcQtyDigits = '1';
+
+function setActiveTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabPrice').classList.toggle('active-tab', tab === 'price');
+  document.getElementById('tabQty').classList.toggle('active-tab', tab === 'qty');
+}
+
+function numKey(k) {
+  if (activeTab === 'price') {
+    if (k === 'del') { calcCents = Math.floor(calcCents / 10); }
+    else { if (calcCents < 100000) calcCents = calcCents * 10 + parseInt(k); }
+  } else {
+    if (k === 'del') {
+      calcQtyDigits = calcQtyDigits.length > 1 ? calcQtyDigits.slice(0, -1) : '1';
+    } else {
+      if (calcQtyDigits === '0' || calcQtyDigits === '1' && k !== '0') { calcQtyDigits = k; }
+      else if (calcQtyDigits.length < 3) { calcQtyDigits += k; }
+    }
+    calcQty = Math.max(1, parseInt(calcQtyDigits) || 1);
+    calcQtyDigits = String(calcQty);
+  }
+  updateCalcDisplay();
+}
+
+function updateCalcDisplay() {
+  const dollars = calcCents / 100;
+  document.getElementById('calcDisplay').textContent = fmtMoney(dollars);
+  document.getElementById('calcQtyDisplay').textContent = calcQty;
+  const total = dollars * calcQty;
+  document.getElementById('calcPreview').textContent =
+    (calcCents > 0 && calcQty > 1) ? `${calcQty} × ${fmtMoney(dollars)} = ${fmtMoney(total)}` : '';
+}
+
+function confirmItem() {
+  if (calcCents === 0) { alert('Enter a price.'); return; }
+  const price = calcCents / 100;
+  const name  = pendingItem.variantName || pendingItem.name;
+  manualItems.push({ name, price, qty: calcQty, total: price * calcQty });
+  closeModal();
+  renderAddedItems();
+}
+
+// ── Added items list ──────────────────────────────────────────────────────────
+function renderAddedItems() {
+  const el = document.getElementById('addedItems');
+  el.innerHTML = '';
+  let total = 0;
+
+  manualItems.forEach((item, i) => {
+    total += item.total;
+    const div = document.createElement('div');
+    div.className = 'added-item';
+    div.innerHTML = `<div><div class="aname">${item.name}</div><div class="ameta">${item.qty} × ${fmtMoney(item.price)}</div></div><div style="display:flex;align-items:center;"><span class="aprice">${fmtMoney(item.total)}</span><button class="adel" onclick="removeItem(${i})">×</button></div>`;
+    el.appendChild(div);
+  });
+
+  if (fuel5On) {
+    total += 5;
+    const div = document.createElement('div');
+    div.className = 'added-item';
+    div.innerHTML = `<div><div class="aname">Fuel Surcharge</div><div class="ameta">Fixed $5.00</div></div><div style="display:flex;align-items:center;"><span class="aprice">$5.00</span></div>`;
+    el.appendChild(div);
+  }
+
+  document.getElementById('runningTotal').textContent = fmtMoney(total);
+}
+
+function removeItem(i) { manualItems.splice(i, 1); renderAddedItems(); }
+
+function submitManual() {
+  const customer   = document.getElementById('manualCustomer').value.trim();
+  const digits     = document.getElementById('manualReceiptNum').value.trim();
+  const prefix     = selectedDevice?.prefix || '';
+  const cleanPrefix = prefix ? (prefix.endsWith('-') ? prefix : prefix + '-') : '';
+  const num        = cleanPrefix ? (cleanPrefix + digits) : digits;
+  const errEl      = document.getElementById('manual-error');
+  if (!customer) { errEl.innerHTML = '<div class="msg msg-err">Enter a customer name.</div>'; return; }
+  if (!digits)   { errEl.innerHTML = '<div class="msg msg-err">Enter a receipt number.</div>'; return; }
+  const allItems = [...manualItems];
+  if (fuel5On) allItems.push({ name:'Fuel Surcharge', price:5, qty:1, total:5 });
+  if (!allItems.length) { errEl.innerHTML = '<div class="msg msg-err">Add at least one item.</div>'; return; }
+  errEl.innerHTML = '';
+  const total = allItems.reduce((s, i) => s + i.total, 0);
+  isManual = true;
+  currentReceipt = {
+    receiptNumber: num, customerName: customer, total,
+    createdAt: new Date().toISOString(),
+    items: allItems, posName: selectedDevice?.name || '', offline: true
+  };
+  openSignScreen();
+}
+
+// ── Online receipt ────────────────────────────────────────────────────────────
+async function openApiReceipt(r) {
+  isManual = false;
+  let customerName    = r.customer_name || '';
+  let customerAddress = '';
+  if (r.customer_id) {
+    try {
+      const cr = await loyverseGet(`customers/${r.customer_id}`);
+      if (cr.ok) {
+        const c = await cr.json();
+        customerName = [c.first_name, c.last_name].filter(Boolean).join(' ')
+          || c.company_name || c.name || customerName;
+        customerAddress = [c.address, c.city, c.region, c.postal_code].filter(Boolean).join(', ');
+      }
+    } catch(e) {}
+  }
+  currentReceipt = {
+    receiptNumber: r.receipt_number, customerName, customerAddress,
+    total: r.total_money, createdAt: r.created_at,
+    items: (r.line_items || []).map(i => ({name:i.item_name||'Item', qty:i.quantity, price:i.price, total:i.total_money})),
+    posName: selectedDevice?.name || ''
+  };
+  openSignScreen();
+}
+
+// ── Sign screen ───────────────────────────────────────────────────────────────
+function openSignScreen() {
+  const r = currentReceipt;
+  const html = `<div class="receipt-summary">
+    <div class="rs-left">
+      <div class="rs-num">#${r.receiptNumber}</div>
+      <div class="rs-name">${r.customerName || 'No name'}${r.offline ? ' · ⚠ Manual' : ''}</div>
+    </div>
+    <div class="rs-total">${fmtMoney(r.total)}</div>
+  </div>`;
+  document.getElementById('receiptDetail').innerHTML = html;
+  document.getElementById('sign-error').innerHTML = '';
+  clearSig(); showScreen('screen-sign'); initCanvas();
+}
+
+// ── Signature ─────────────────────────────────────────────────────────────────
+function initCanvas() {
+  const container = document.getElementById('sigContainer');
+  const old       = document.getElementById('sigCanvas');
+  const canvas    = old.cloneNode(true);
+  container.replaceChild(canvas, old);
+  canvas.width  = container.offsetWidth;
+  canvas.height = container.offsetHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e.touches[0], canvas); }, {passive:false});
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); draw(e.touches[0], canvas, ctx); }, {passive:false});
+  canvas.addEventListener('touchend',   () => endDraw(), {passive:false});
+  canvas.addEventListener('mousedown',  e => startDraw(e, canvas));
+  canvas.addEventListener('mousemove',  e => draw(e, canvas, ctx));
+  canvas.addEventListener('mouseup',    () => endDraw());
+  canvas.addEventListener('mouseleave', () => endDraw());
+}
+function getPos(e, c) { const r = c.getBoundingClientRect(); return {x:(e.clientX-r.left)*(c.width/r.width), y:(e.clientY-r.top)*(c.height/r.height)}; }
+function startDraw(e, c) { sigDrawing = true; lastPos = getPos(e, c); document.getElementById('sigHint').style.opacity = '0'; }
+function draw(e, c, ctx) { if (!sigDrawing) return; const pos = getPos(e,c); ctx.beginPath(); ctx.moveTo(lastPos.x,lastPos.y); ctx.lineTo(pos.x,pos.y); ctx.stroke(); lastPos = pos; sigHasContent = true; document.getElementById('sigContainer').classList.add('has-sig'); }
+function endDraw() { sigDrawing = false; lastPos = null; }
+function clearSig() {
+  const c = document.getElementById('sigCanvas');
+  c.getContext('2d')?.clearRect(0, 0, c.width, c.height);
+  sigHasContent = false;
+  document.getElementById('sigContainer').classList.remove('has-sig');
+  const h = document.getElementById('sigHint'); if (h) h.style.opacity = '1';
+}
+
+// ── PDF generation ────────────────────────────────────────────────────────────
+async function savePDF() {
+  if (!sigHasContent) { document.getElementById('sign-error').innerHTML = '<div class="msg msg-err">Get a signature first.</div>'; return; }
+  document.getElementById('sign-error').innerHTML = '';
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> GENERATING...';
+  try {
+    const {jsPDF} = window.jspdf;
+    const r      = currentReceipt;
+    const canvas = document.getElementById('sigCanvas');
+    const now    = new Date();
+
+    function renderDoc(doc) {
+      const W=52, M=4, mid=W/2; let y=7;
+      doc.setFont('Times','bold'); doc.setFontSize(16); doc.setTextColor(10,10,10);
+      doc.text(storeName, mid, y, {align:'center'}); y+=6;
+      if (storeSubtitle) { doc.setFont('Helvetica','bold'); doc.setFontSize(8); doc.text(storeSubtitle, mid, y, {align:'center'}); y+=4.5; }
+      if (storeAddress)  { doc.setFont('Helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(40,40,40); doc.splitTextToSize(storeAddress, W-M*2).forEach(l=>{doc.text(l,mid,y,{align:'center'});y+=3.5;}); }
+      if (storePhone)    { doc.text(storePhone, mid, y, {align:'center'}); y+=4.5; }
+      doc.setFont('Helvetica','normal'); doc.setFontSize(7); doc.setTextColor(30,30,30);
+      if (r.customerName)    { doc.text(`Customer: ${r.customerName}`, M, y); y+=3.5; }
+      if (r.customerAddress) { doc.setFontSize(6.5); doc.splitTextToSize(r.customerAddress, W-M*2).forEach(l=>{doc.text(l, M, y); y+=3.2;}); doc.setFontSize(7); }
+      if (r.posName)         { doc.text(`POS: ${r.posName}`, M, y); y+=3.5; }
+      if (r.offline)         { doc.setTextColor(180,120,0); doc.text('* Manual entry', M, y); doc.setTextColor(30,30,30); y+=3.5; }
+      dotLine(doc, M, y, W); y+=4;
+      doc.setFontSize(7.5);
+      r.items.forEach(item => {
+        doc.setFont('Helvetica','normal'); doc.setTextColor(20,20,20);
+        doc.text((item.name||'Item').substring(0,24), M, y); doc.text(fmtMoney(item.total), W-M, y, {align:'right'}); y+=3.8;
+        if (item.qty && item.price) { doc.setFontSize(6.5); doc.setTextColor(80,80,80); doc.text(`  ${item.qty} x ${fmtMoney(item.price)}`, M, y); y+=3.5; doc.setFontSize(7.5); doc.setTextColor(20,20,20); }
+      });
+      dotLine(doc, M, y, W); y+=4;
+      doc.setFont('Helvetica','bold'); doc.setFontSize(9); doc.setTextColor(10,10,10);
+      doc.text('Total', M, y); doc.text(fmtMoney(r.total), W-M, y, {align:'right'}); y+=5;
+      doc.setFont('Helvetica','normal'); doc.setFontSize(7.5);
+      doc.text('Charge', M, y); doc.text(fmtMoney(r.total), W-M, y, {align:'right'}); y+=4;
+      dotLine(doc, M, y, W); y+=5;
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', M, y, W-M*2, 16); y+=17;
+      doc.setDrawColor(30,30,30); doc.setLineWidth(0.3); doc.line(M, y, W-M, y); y+=3;
+      doc.setFont('Helvetica','normal'); doc.setFontSize(7); doc.setTextColor(40,40,40);
+      doc.text('Signature', M, y); y+=5;
+      const cd = new Date(r.createdAt);
+      doc.text(`${cd.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'})} ${cd.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`, M, y);
+      doc.text(`#${r.receiptNumber}`, W-M, y, {align:'right'}); y+=4;
+      doc.setFontSize(6.5); doc.setTextColor(120,120,120);
+      doc.text(`Signed ${now.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'})} ${now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`, M, y);
+      y+=3;
+      return y;
+    }
+
+    // Pass 1: measure
+    const measureDoc = new jsPDF({orientation:'portrait', unit:'mm', format:[52,400]});
+    const contentHeight = renderDoc(measureDoc);
+
+    // Pass 2: exact height
+    const finalDoc = new jsPDF({orientation:'portrait', unit:'mm', format:[52, contentHeight + 3]});
+    renderDoc(finalDoc);
+
+    const slug     = (r.customerName||'unknown').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-').toLowerCase();
+    const filename = `${slug}_receipt_${r.receiptNumber}_${now.toISOString().slice(0,10)}.pdf`;
+    const pdfBase64 = finalDoc.output('datauristring').split(',')[1];
+
+    // Try Drive upload
+    btn.innerHTML = '<span class="spinner"></span> UPLOADING...';
+    try {
+      await uploadToDrive(pdfBase64, filename, r.customerName);
+      document.getElementById('done-sub').innerHTML =
+        `<strong style="color:var(--text);">${r.customerName||'Receipt'}</strong><br>${filename}<br><br>✓ Saved to Google Drive`;
+    } catch(e) {
+      // No signal — queue for later, no download to phone
+      queueUpload(pdfBase64, filename, r.customerName);
+      document.getElementById('done-sub').innerHTML =
+        `<strong style="color:var(--text);">${r.customerName||'Receipt'}</strong><br>${filename}<br><br>📤 Queued · Will upload to Drive when connected`;
+    }
+
+    showScreen('screen-done');
+  } catch(e) {
+    document.getElementById('sign-error').innerHTML = `<div class="msg msg-err">PDF error: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.innerHTML = 'SAVE SIGNED PDF';
+}
+
+function dotLine(doc, M, y, W) {
+  doc.setLineDashPattern([0.5,0.8],0); doc.setDrawColor(140,140,140);
+  doc.line(M, y, W-M, y); doc.setLineDashPattern([],0);
+}
+function fmtMoney(v) { return v == null ? '$0.00' : '$' + parseFloat(v).toFixed(2); }
+
+// ── Google Drive upload ───────────────────────────────────────────────────────
+async function uploadToDrive(pdfBase64, filename, customerName) {
+  const resp = await fetch(`${WORKER_URL}/drive/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename, customerName, pdfBase64 })
+  });
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.error || 'Upload failed');
+  return data;
+}
+
+function updateQueueBadge() {
+  const q  = getUploadQueue();
+  const el = document.getElementById('queue-badge');
+  if (!el) return;
+  if (q.length === 0) {
+    el.style.display = 'none';
+  } else {
+    el.style.display = 'block';
+    el.textContent = `📤 ${q.length} receipt${q.length > 1 ? 's' : ''} queued — will upload to Drive when connected`;
+  }
+}
+
+// ── Upload queue ──────────────────────────────────────────────────────────────
+function getUploadQueue() {
+  try { return JSON.parse(localStorage.getItem('signreceipt_queue') || '[]'); } catch(e) { return []; }
+}
+function saveUploadQueue(q) { localStorage.setItem('signreceipt_queue', JSON.stringify(q)); }
+
+function queueUpload(pdfBase64, filename, customerName) {
+  const q = getUploadQueue();
+  q.push({ pdfBase64, filename, customerName, ts: Date.now() });
+  saveUploadQueue(q);
+  updateQueueBadge();
+}
+
+async function processUploadQueue() {
+  const q = getUploadQueue();
+  if (!q.length) return;
+  const remaining = [];
+  for (const item of q) {
+    try { await uploadToDrive(item.pdfBase64, item.filename, item.customerName); }
+    catch(e) { remaining.push(item); }
+  }
+  saveUploadQueue(remaining);
+  updateQueueBadge();
+}
+
+async function tryFlushQueue() {
+  try {
+    const r = await loyverseGet('receipts?limit=1');
+    if (r.ok) processUploadQueue();
+  } catch(e) {}
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Signreciept/sw.js')
+    .catch(e => console.log('SW reg failed:', e));
+}
+</script>
+</body>
+</html>
