@@ -1,4 +1,4 @@
-const CACHE = 'signreceipt-v6';
+const CACHE = 'signreceipt-v7';
 
 const ASSETS = [
   '/Signreciept/index.html',
